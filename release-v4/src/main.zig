@@ -183,6 +183,7 @@ pub fn main(init: std.process.Init) !void {
         const prop_writer = &prop_file_writer.interface;
 
         const startTime = Io.Timestamp.now(init.io, .real);
+        try graph.reset(arena);
         const results = try simulation.simulate(
             gpa,
             arena,
@@ -219,6 +220,7 @@ pub fn main(init: std.process.Init) !void {
 
         try stdout.flush();
     }
+    try times_w.flush();
 }
 
 /// this probably could be much more prettier if I passed the Io.Writer/Io.Reader by parameter, and I

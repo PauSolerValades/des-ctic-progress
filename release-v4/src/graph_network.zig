@@ -161,6 +161,24 @@ pub const Topology = struct {
         };
     }
 
+    pub fn reset(self: *Topology, arena: Allocator) !void {
+        @memset(self.users.items(.is_online), false);
+        @memset(self.users.items(.session_gen), 0);
+        @memset(self.users.items(.num_posts), 0);
+        @memset(self.users.items(.session_start_time), 0.0);
+
+        for (self.timelines) |*t| t.clearRetainingCapacity();
+
+        self.posts.deinit(arena);
+        self.posts = .empty;
+
+        self.user_seen_post.deinit(arena);
+        self.user_seen_post = try .initPages(arena, self.users.len, 16);
+
+        self.user_interacted_post.deinit(arena);
+        self.user_interacted_post = try .initPages(arena, self.users.len, 16);
+    }
+
     pub fn delete(self: *Topology, gpa: Allocator, arena: Allocator) void {
         self.users.deinit(arena);
         arena.free(self.followers);
