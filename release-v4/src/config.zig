@@ -44,8 +44,8 @@ pub const SimConfig = struct {
     pub fn calibrate(gpa: std.mem.Allocator) !SimConfig {
         return SimConfig{
             .seed = null,
-            .horizon = 100000,
-            .duration = 50000,
+            .horizon = 6001,
+            .duration = 5000,
             .warmup_time = 1000,
             .user_policy = try Categorical(f64, entities.Action).init(gpa, &.{ 0.80, 0.188, 0.012 }, &.{ .ignore, .like, .repost }),
             .user_inter_action = Exponential(f64).initMean(3.0),

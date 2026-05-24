@@ -32,6 +32,10 @@ const def = .{
     .description = "Bsky sim",
     .required = .{
         Arg([]const u8, "data", "Data file containing the network definition"),
+        Arg(usize, "runs", "How many times to run this configuraiton"),
+    },
+    .options = .{
+        argz.Option([]const u8, "name", "n", "", "Dataset name for trace folder (default: derived from data path)"),
     },
 };
 
@@ -96,7 +100,7 @@ pub fn main(init: std.process.Init) !void {
     try stdout.print("{f}\n", .{config});
     try stdout.flush();
 
-    try stdout.writeAll("Running the simulation once\n");
+    try stdout.print("Running the simulation {d} times\n", .{args.runs});
     try stdout.flush();
 
     // create the results folder
@@ -115,64 +119,106 @@ pub fn main(init: std.process.Init) !void {
     const create_name = "create_trace.bin";
     const propagation_name = "propagation_trace.bin";
 
-    var action_path_buf: [std.fs.max_path_bytes]u8 = undefined;
-    const action_path = try std.fmt.bufPrint(&action_path_buf, "traces/{s}", .{action_name});
+    const data_dir = std.fs.path.dirname(args.data) orelse ".";
+    const dataset_name = if (args.name.len > 0) args.name else std.fs.path.basename(data_dir);
 
-    var session_path_buf: [std.fs.max_path_bytes]u8 = undefined;
-    const session_path = try std.fmt.bufPrint(&session_path_buf, "traces/{s}", .{session_name});
+    // create traces/<dataset>/ base dir
+    var traces_base_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const traces_base = try std.fmt.bufPrint(&traces_base_buf, "traces/{s}", .{dataset_name});
+    cwd.createDir(init.io, "traces", .default_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    cwd.createDir(init.io, traces_base, .default_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
 
-    var create_path_buf: [std.fs.max_path_bytes]u8 = undefined;
-    const create_path = try std.fmt.bufPrint(&create_path_buf, "traces/{s}", .{create_name});
+    // log execution times per run
+    var times_path_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const times_path = try std.fmt.bufPrint(&times_path_buf, "{s}/execution_times.txt", .{traces_base});
+    const times_file = try cwd.createFile(init.io, times_path, .{});
+    var times_buf: [256]u8 = undefined;
+    var times_writer = times_file.writer(init.io, &times_buf);
+    const times_w = &times_writer.interface;
 
-    var prop_path_buf: [std.fs.max_path_bytes]u8 = undefined;
-    const prop_path = try std.fmt.bufPrint(&prop_path_buf, "traces/{s}", .{propagation_name});
+    for (0..args.runs) |run_id| {
+        // Create traces/<dataset>/{run_id}/
+        var run_dir_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const run_dir = try std.fmt.bufPrint(&run_dir_buf, "{s}/{d}", .{ traces_base, run_id });
+        cwd.createDir(init.io, run_dir, .default_dir) catch |err| switch (err) {
+            error.PathAlreadyExists => {},
+            else => return err,
+        };
 
-    var action_buffer: [64 * 1024]u8 = undefined;
-    var session_buffer: [64 * 1024]u8 = undefined;
-    var create_buffer: [64 * 1024]u8 = undefined;
-    var propagation_buffer: [64 * 1024]u8 = undefined;
+        // Paths for binary traces inside the run dir
+        var action_bin_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const action_bin = try std.fmt.bufPrint(&action_bin_buf, "{s}/{s}", .{ run_dir, action_name });
+        var session_bin_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const session_bin = try std.fmt.bufPrint(&session_bin_buf, "{s}/{s}", .{ run_dir, session_name });
+        var create_bin_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const create_bin = try std.fmt.bufPrint(&create_bin_buf, "{s}/{s}", .{ run_dir, create_name });
+        var prop_bin_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const prop_bin = try std.fmt.bufPrint(&prop_bin_buf, "{s}/{s}", .{ run_dir, propagation_name });
 
-    const action_file = try cwd.createFile(init.io, action_path, .{ .read = false });
-    var action_file_writer = action_file.writer(init.io, &action_buffer);
-    const action_writer = &action_file_writer.interface;
+        var action_buffer: [64 * 1024]u8 = undefined;
+        var session_buffer: [64 * 1024]u8 = undefined;
+        var create_buffer: [64 * 1024]u8 = undefined;
+        var propagation_buffer: [64 * 1024]u8 = undefined;
 
-    const session_file = try cwd.createFile(init.io, session_path, .{ .read = false });
-    var session_file_writer = session_file.writer(init.io, &session_buffer);
-    const session_writer = &session_file_writer.interface;
+        const action_file = try cwd.createFile(init.io, action_bin, .{});
+        var action_file_writer = action_file.writer(init.io, &action_buffer);
+        const action_writer = &action_file_writer.interface;
 
-    const create_file = try cwd.createFile(init.io, create_path, .{ .read = false });
-    var create_file_writer = create_file.writer(init.io, &create_buffer);
-    const create_writer = &create_file_writer.interface;
+        const session_file = try cwd.createFile(init.io, session_bin, .{});
+        var session_file_writer = session_file.writer(init.io, &session_buffer);
+        const session_writer = &session_file_writer.interface;
 
-    const prop_file = try cwd.createFile(init.io, prop_path, .{ .read = false });
-    var prop_file_writer = prop_file.writer(init.io, &propagation_buffer);
-    const prop_writer = &prop_file_writer.interface;
+        const create_file = try cwd.createFile(init.io, create_bin, .{});
+        var create_file_writer = create_file.writer(init.io, &create_buffer);
+        const create_writer = &create_file_writer.interface;
 
-    const startTime = Io.Timestamp.now(init.io, .real);
-    const results = try simulation.simulate(
-        gpa,
-        arena,
-        rng,
-        &config,
-        &graph,
-        action_writer,
-        session_writer,
-        create_writer,
-        prop_writer,
-    );
-    const elapsedTime = startTime.untilNow(init.io, .real);
+        const prop_file = try cwd.createFile(init.io, prop_bin, .{});
+        var prop_file_writer = prop_file.writer(init.io, &propagation_buffer);
+        const prop_writer = &prop_file_writer.interface;
 
-    try stdout.print("{f}\n", .{results});
-    try stdout.print("Time Elapsed: {d} ms\n", .{elapsedTime.toMilliseconds()});
-    try stdout.flush();
+        const startTime = Io.Timestamp.now(init.io, .real);
+        const results = try simulation.simulate(
+            gpa,
+            arena,
+            rng,
+            &config,
+            &graph,
+            action_writer,
+            session_writer,
+            create_writer,
+            prop_writer,
+        );
+        const elapsedTime = startTime.untilNow(init.io, .real);
 
-    try stdout.writeAll("Converting the traces into JSONL\n");
-    try bytesToJsonl(init.io, entities.TraceAction, action_path, "traces/action_trace.jsonl");
-    try bytesToJsonl(init.io, entities.TraceSession, session_path, "traces/session_trace.jsonl");
-    try bytesToJsonl(init.io, entities.TraceCreate, create_path, "traces/create_trace.jsonl");
-    try bytesToJsonl(init.io, entities.TracePropagation, prop_path, "traces/propagate_trace.jsonl");
+        try stdout.print("Run {d}: {d} ms\n", .{ run_id, elapsedTime.toMilliseconds() });
+        try times_w.print("{d}\n", .{elapsedTime.toMilliseconds()});
+        try stdout.print("{f}\n", .{results});
+        try stdout.flush();
 
-    try stdout.flush();
+        // Convert binary traces to JSONL
+        try stdout.writeAll("Converting traces into JSONL\n");
+        var jsonl_buf: [std.fs.max_path_bytes]u8 = undefined;
+
+        const action_jsonl = try std.fmt.bufPrint(&jsonl_buf, "{s}/action_trace.jsonl", .{run_dir});
+        try bytesToJsonl(init.io, entities.TraceAction, action_bin, action_jsonl);
+
+        const session_jsonl = try std.fmt.bufPrint(&jsonl_buf, "{s}/session_trace.jsonl", .{run_dir});
+        try bytesToJsonl(init.io, entities.TraceSession, session_bin, session_jsonl);
+
+        const create_jsonl = try std.fmt.bufPrint(&jsonl_buf, "{s}/create_trace.jsonl", .{run_dir});
+        try bytesToJsonl(init.io, entities.TraceCreate, create_bin, create_jsonl);
+
+        const prop_jsonl = try std.fmt.bufPrint(&jsonl_buf, "{s}/propagate_trace.jsonl", .{run_dir});
+        try bytesToJsonl(init.io, entities.TracePropagation, prop_bin, prop_jsonl);
+
+        try stdout.flush();
+    }
 }
 
 /// this probably could be much more prettier if I passed the Io.Writer/Io.Reader by parameter, and I
