@@ -112,6 +112,7 @@ pub const TraceSession = struct {
     gen_id: u64,
     user_id: Index,
     type: Session,
+    backlog: u32,
 };
 
 pub const TracePropagation = struct {

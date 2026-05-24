@@ -31,7 +31,7 @@ pub const SimConfig = struct {
     warmup_time: f64, // time when warmup ends
     // user related actions
     user_policy: Categorical(f64, entities.Action),
-    user_inter_action: Pareto(f64), // time between a user two actions
+    user_inter_action: Exponential(f64), // time between a user two actions
     // to init posts
     warmup_post_inter_creation: Uniform(f64), // time of the post created in the simulation
     // delays on posts transmissions
@@ -43,12 +43,12 @@ pub const SimConfig = struct {
 
     pub fn calibrate(gpa: std.mem.Allocator) !SimConfig {
         return SimConfig{
-            .seed = 42,
-            .horizon = 10000,
-            .duration = 9000,
+            .seed = null,
+            .horizon = 100000,
+            .duration = 50000,
             .warmup_time = 1000,
-            .user_policy = try Categorical(f64, entities.Action).init(gpa, &.{ 0.80, 0.17, 0.03 }, &.{ .ignore, .like, .repost }),
-            .user_inter_action = Pareto(f64).init(2.0, 3.0),
+            .user_policy = try Categorical(f64, entities.Action).init(gpa, &.{ 0.80, 0.188, 0.012 }, &.{ .ignore, .like, .repost }),
+            .user_inter_action = Exponential(f64).initMean(3.0),
             .warmup_post_inter_creation = Uniform(f64).init(0.0, 1000.0, Interval.cc),
             .propagation_delay = Constant(f64).init(1.0),
             .interaction_delay = Constant(f64).init(1.0),

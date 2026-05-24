@@ -260,7 +260,7 @@ pub fn initSessions(
             metrics.total_sessions += 1;
 
             // as user starts online, we log this into the session trace, it's both a generation and a processed event
-            const s = TraceSession{ .time = t_clock, .type = .start, .user_id = @intCast(uid), .event_id = metrics.processed_events, .gen_id = metrics.generated_events };
+            const s = TraceSession{ .time = t_clock, .type = .start, .user_id = @intCast(uid), .event_id = metrics.processed_events, .gen_id = metrics.generated_events, .backlog = 0 };
             const bytes = std.mem.asBytes(&s);
             try session_trace.writeAll(bytes);
             metrics.*.generated_events += 1;
@@ -351,7 +351,8 @@ pub fn simulate(gpa: Allocator, arena: Allocator, rng: Random, simconf: *const S
                     continue;
                 }
 
-                const s = TraceSession{ .time = t_clock, .type = ssn, .user_id = current_uid, .event_id = metrics.processed_events, .gen_id = gen_id };
+                const backlog: u32 = if (ssn == .end) @intCast(graph.timelines[current_uid].items.len) else 0;
+                const s = TraceSession{ .time = t_clock, .type = ssn, .user_id = current_uid, .event_id = metrics.processed_events, .gen_id = gen_id, .backlog = backlog };
                 const bytes = std.mem.asBytes(&s);
                 try session_trace.writeAll(bytes);
 
@@ -457,7 +458,7 @@ pub fn simulate(gpa: Allocator, arena: Allocator, rng: Random, simconf: *const S
                     metrics.empty_timeline_ends += 1;
                     graph.users.items(.session_gen)[current_uid] += 1;
 
-                    const s = TraceSession{ .time = t_clock, .type = .end, .user_id = current_uid, .event_id = metrics.processed_events, .gen_id = gen_id };
+                    const s = TraceSession{ .time = t_clock, .type = .end, .user_id = current_uid, .event_id = metrics.processed_events, .gen_id = gen_id, .backlog = 0 };
                     const bytes = std.mem.asBytes(&s);
                     try session_trace.writeAll(bytes);
 
