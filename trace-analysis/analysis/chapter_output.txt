@@ -1,8 +1,6 @@
-
 ======================================================================
-  Stationary
+  STATIONARY BEHAVIOUR
 ======================================================================
-
 === 1.1 Batch means ± CI95 ===
 
   avg_online_frac:
@@ -34,9 +32,8 @@
 Done.
 
 ======================================================================
-  Congestion
+  QUEUED CONTENT CONGESTION
 ======================================================================
-
 === 2.1 Timeline Starvation ===
 
 ─── 2.1 Timeline Starvation ───
@@ -64,61 +61,23 @@ Done.
 
 ─── 2.2 Session duration percentiles ───
   Size           mean       p5      p25      p50      p75      p95      p99
-  100K            115        2        6       35      128      436     1165
-  500K            129        2       10       50      143      469     1285
-  1M              115        2        8       38      125      429     1194
-
-─── 2.2.4 Duration vs actions ───
-
-  100K:
-  Bucket              N   mean_actions   mean_reposts   %empty
-  <10        116,788,258            0.3           0.00    87.4%
-  300+       31,709,376          167.2           2.01    12.8%
-  10-60      91,964,647            6.5           0.08    57.2%
-  60-300     115,368,442           35.2           0.42    19.2%
-
-  500K:
-  Bucket              N   mean_actions   mean_reposts   %empty
-  10-60      41,993,868            6.8           0.08    56.4%
-  <10        37,980,065            0.4           0.01    82.1%
-  60-300     53,958,377           35.0           0.42    20.8%
-  300+       14,715,376          170.2           2.04    14.6%
-
-  1M:
-  Bucket              N   mean_actions   mean_reposts   %empty
-  300+        1,936,064          171.0           2.05    18.4%
-  <10         6,505,157            0.4           0.00    85.2%
-  10-60       6,632,578            6.6           0.08    62.5%
-  60-300      7,435,281           34.5           0.41    25.4%
-
-=== 2.3 Per-user aggregation ===
-
-─── 2.3 Per-user aggregation (1 run per size) ───
-  Size          users   sess/user   mean_dur   med_dur   %empty   act/user  rep/user
-  100K         65,495        3.4       202       87    34.4%        96      1.1
-  500K        327,433        3.3       223      102    28.4%       106      1.3
-  1M          656,835        3.4       206       91    34.2%        96      1.2
-
-=== 2.4 Content creation ===
-
-─── 2.4 Content creation per session ───
-  100K: 9.2% of sessions have posts created (mean=0.40/session)
-  500K: 10.2% of sessions have posts created (mean=0.45/session)
-  1M: 9.3% of sessions have posts created (mean=0.40/session)
-
-All plots saved to /home/psoler/des-ctic/trace-analysis/analysis/output/
 
 ======================================================================
-  Lifetimes Cascades
+  LIFETIMES AND CASCADES
 ======================================================================
-
 
 === 3.1 Post Lifetime Metrics ===
 
-  Size       % reposted   mean_reposts   mean_lifetime   med_lifetime     mean_B   mean_ttp50
-  100K           100.0%           2.8            843           471    -0.207         7.0
-  500K           100.0%           3.2            984           613    -0.170        10.9
-  1M             100.0%           3.3           1107           750    -0.164        15.0
+  Size        total_posts   % reposted   mean_reposts   mean_lifetime   med_lifetime
+  100K        172,099,755        25.1%           2.8            843           471
+  500K         79,847,965        21.3%           3.2            984           613
+  1M           10,487,978        19.4%           3.3           1107           750
+
+  Burstiness & time-to-peak (posts with reposts > 0):
+  Size         mean_B      med_B   mean_ttp50    med_ttp50
+  100K        -0.207     0.000         7.0         0.0
+  500K        -0.170     0.000        10.9         0.0
+  1M          -0.164     0.000        15.0         0.0
 
   Posts with 0 reposts:
   Size            count    % no engage   mean_lifetime   med_lifetime
@@ -126,12 +85,69 @@ All plots saved to /home/psoler/des-ctic/trace-analysis/analysis/output/
   500K       62,847,110          35.4%            179           2.3
   1M          8,455,627          38.7%            204           2.2
 
-=== 4.1 Cascade Batch Means ===
+=== 4.1 Cascade Metrics (all runs pooled) ===
 
-  Size         cascades    mean_size   mean_depth     mean_v   %viral10    %branch
-  100K       26,492,414         5.3         2.9      1.90       9.3%      45.8%
-  500K       10,523,763         6.1         3.3      2.05      13.7%      42.0%
-  1M          1,317,255         6.3         3.6      2.10      13.6%      35.6%
+  Size         cascades    mean_sz   med_sz    mean_dp   max_dp   mean_v    max_v   %viral10   %viral50    %branch
+  100K       26,492,414       5.3       4       2.9      70    1.90    26.9       9.3%      0.02%      45.8%
+  500K       10,523,763       6.1       4       3.3     106    2.05    29.8      13.7%      0.22%      42.0%
+  1M          1,317,255       6.3       4       3.6      87    2.10    34.9      13.6%      0.47%      35.6%
+─── 4.2 Structural Virality Distribution ───
+  Size         mean      med      p25      p75      p95   %minimal    %branch
+  100K         1.90     1.67     1.33     2.21     3.33      39.4%      45.8%
+  500K         2.05     1.67     1.33     2.33     4.00      38.7%      42.0%
+  1M           2.10     1.67     1.33     2.33     4.33      40.3%      35.6%
+
+  Virality by cascade size:
+
+    100K:
+    Bucket                  N     mean_v   mean_depth   mean_max_out
+    3-4            15,698,799      1.44         2.1           1.3
+    5-9             8,334,373      2.29         3.6           2.2
+    10-19           2,186,329      3.41         5.4           4.7
+    20-49             267,287      4.45         7.6           9.4
+    50+                 5,626     10.93        25.1          20.2
+
+    500K:
+    Bucket                  N     mean_v   mean_depth   mean_max_out
+    3-4             6,010,814      1.44         2.1           1.2
+    5-9             3,073,520      2.33         3.9           2.1
+    10-19           1,091,543      3.61         6.1           4.6
+    20-49             324,324      5.02         9.4          10.1
+    50+                23,562      7.66        17.9          25.5
+
+    1M:
+    Bucket                  N     mean_v   mean_depth   mean_max_out
+    3-4               773,192      1.44         2.2           1.1
+    5-9               364,408      2.35         4.1           1.9
+    10-19             127,814      3.82         6.9           4.1
+    20-49              45,643      5.56        10.9           9.6
+    50+                 6,198      8.45        20.2          27.2
+
+─── 4.3 Top 5 most viral cascades ───
+
+  100K:
+     post_id   size  depth   virality  max_out   auth_deg
+      187809     93     67     26.88        9         14
+      254677    136     70     25.85       35         14
+      120726     97     65     25.69       16         14
+      255143    144     67     24.30       38         14
+      112281     74     62     24.28        4         14
+
+  500K:
+     post_id   size  depth   virality  max_out   auth_deg
+      675244    343    106     29.81       99        612
+      561560    338    100     27.70      107        612
+      183481    302     94     27.40       72        612
+      311765    217     78     27.38       37        612
+      906884     79     49     26.22        3       1954
+
+  1M:
+     post_id   size  depth   virality  max_out   auth_deg
+      630082    150     87     34.90       24        107
+     2300348    130     60     29.47       10         29
+     3187909    142     74     28.14       27       1848
+     2011883     98     63     26.28        8         29
+     2497348     93     65     26.10       11       1574
 
 ─── 4.2 Cascade size distribution ───
 
@@ -183,9 +199,8 @@ All plots saved to /home/psoler/des-ctic/trace-analysis/analysis/output/
 All plots saved to /home/psoler/des-ctic/trace-analysis/analysis/output/
 
 ======================================================================
-  Coupling
+  MICRO-MACRO COUPLING
 ======================================================================
-
 === 5.1 Pace Ratio ρ ==============================
   ρ = inter_action_mean / inter_repost_mean
     = 3.0 / (3.0 / 0.012)
