@@ -78,6 +78,26 @@ One row per simulation replication.
 | `empty_timeline_pct` | f64 | % of sessions ending with zero backlog |
 | `gamma_reposts` | f64 | Power-law exponent γ (MLE, discrete, Clauset et al.) |
 
+### `out_sessions.parquet` — Per-Session Metrics
+
+One row per session (start/end pair) during steady state.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `sim_id` | str | Simulation replication ID |
+| `user_id` | i64 | User who had the session |
+| `start_time` | f64 | Time when session started |
+| `end_time` | f64 | Time when session ended |
+| `duration` | f64 | end_time - start_time (ticks) |
+| `backlog_at_start` | i64 | Backlog when session began (always 0) |
+| `backlog_at_end` | i64 | Backlog when session ended |
+| `n_actions` | i64 | Timeline pops (ignore+like+repost) |
+| `n_reposts` | i64 | Reposts performed in this session |
+| `n_likes` | i64 | Likes performed |
+| `n_ignores` | i64 | Ignores performed |
+| `n_posts_created` | i64 | Posts authored |
+| `empty_timeline_exit` | bool | True if session ended with backlog=0 |
+
 ## Processing Pipeline
 
 ```
@@ -99,6 +119,11 @@ trace files (JSONL)                     network.bin
        │         │              - time_to_peak_50 & burstiness_B (Python UDF)
        │         ▼
        │    out_posts.parquet
+       │
+       ├──► sessions.py ───► per-session aggregation
+       │         │              - join_asof pair start/end, assign actions
+       │         ▼
+       │    out_sessions.parquet
        │
        └──► summary.py ────► run-level aggregation
                  │              - sweep-line online fraction
@@ -163,15 +188,23 @@ trace-analysis/
 │   ├── cascades.py              # Cascade morphology (Table 1)
 │   ├── network.py               # network.bin → in-degree lookup
 │   ├── posts.py                 # Post lifetimes (Table 2)
+│   ├── sessions.py              # Per-session metrics (Table 3)
 │   ├── runner.py                # Per-run orchestration
-│   └── summary.py               # Run summary (Table 3)
+│   └── summary.py               # Run summary (Table 4)
+├── analysis/
+│   ├── stationary.py            # Section 1: batch means, convergence
+│   ├── congestion.py            # Section 2: sessions, per-user, starvation
+│   ├── lifetimes_cascades.py    # Sections 3-4: lifetimes + cascades
+│   ├── coupling.py              # Section 5: micro-macro coupling
+│   ├── run_all.py               # Master: runs all → chapter_output.txt
+│   ├── chapter_output.txt       # All tables for the thesis chapter
+│   └── output/                  # 12 figures (.png)
 └── output/
     ├── 100K/
     │   ├── out_cascades.parquet
     │   ├── out_posts.parquet
+    │   ├── out_sessions.parquet
     │   └── out_run_summary.parquet
-    ├── 500K/
-    │   └── ...
-    └── 1M/
-        └── ...
+    ├── 500K/ ...
+    └── 1M/ ...
 ```
