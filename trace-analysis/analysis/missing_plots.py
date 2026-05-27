@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 
-OUTPUT = Path(__file__).parent / "output"
+OUTPUT = Path(__file__).parent / "figures"
 DATA = Path(__file__).parent.parent / "output"
 SIZES = ["100K", "500K", "1M"]
 NL = {"100K": "$10^5$", "500K": "$5\\times10^5$", "1M": "$10^6$"}

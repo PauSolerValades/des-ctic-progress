@@ -3,7 +3,7 @@ import duckdb
 import numpy as np
 from pathlib import Path
 
-OUTPUT = Path(__file__).parent / "output"
+OUTPUT = Path(__file__).parent / "figures"
 DATA = Path(__file__).parent.parent / "output"
 SIZES = ["100K", "500K", "1M"]
 

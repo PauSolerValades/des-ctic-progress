@@ -11,7 +11,7 @@ from pathlib import Path
 
 from trace_analysis.network import load_indegree
 
-OUTPUT = Path(__file__).parent / "output"
+OUTPUT = Path(__file__).parent / "figures"
 DATA = Path(__file__).parent.parent / "output"
 NETWORK_DATA = Path(__file__).parent.parent.parent / "release-v4" / "data"
 SIZES = ["100K", "500K", "1M"]
