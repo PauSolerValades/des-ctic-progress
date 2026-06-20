@@ -2,8 +2,8 @@
 """Convert BlueSky network parquet files to a flat binary file.
 
 Expected parquet files in the input folder:
-    nodes.parquet         – columns: did (string), int_id (i32 → written as u32)
-    induced_edges.parquet – columns: actor_id (i32 → written as u32), subject_id (i32 → u32)
+    nodes.parquet         – columns: did (string), int_id (u32)
+    induced_edges.parquet – columns: actor_id (u32), subject_id (u32)
 
 Binary layout (little-endian, no header):
     u32  num_users
@@ -12,12 +12,10 @@ Binary layout (little-endian, no header):
     u32  induced_edges[num_induced * 2]   (actor_id, subject_id interleaved)
 
 Usage:
-    uv run --with pyarrow parquet_to_bin.py 10K
-    uv run --with pyarrow parquet_to_bin.py 10K -o ./my_output
+    uv run --with pyarrow,numpy parquet_to_bin.py <input_folder> [-o <output_dir>]
 """
 
 import os
-import struct
 import sys
 
 EXPECTED = ("nodes.parquet", "induced_edges.parquet")
@@ -28,11 +26,11 @@ def die(msg: str) -> None:
     sys.exit(1)
 
 
-def read_u32_col(folder: str, filename: str, col: str) -> "list[int]":
+def col_to_numpy(folder: str, filename: str, col: str):
+    """Read a single parquet column as a numpy uint32 array."""
     import pyarrow.parquet as pq
-    t = pq.read_table(os.path.join(folder, filename))
-    # parquet stores i32 but values are non-negative u32 IDs
-    return [v & 0xFFFFFFFF for v in t.column(col).to_pylist()]
+    t = pq.read_table(os.path.join(folder, filename), columns=[col])
+    return t.column(col).to_numpy().astype("<u4", copy=False)
 
 
 def main() -> None:
@@ -68,27 +66,33 @@ def main() -> None:
 
     print(f"Reading: {inp}  ->  {out}")
 
-    users = read_u32_col(inp, "nodes.parquet", "int_id")
-    induced_a = read_u32_col(inp, "induced_edges.parquet", "actor_id")
-    induced_s = read_u32_col(inp, "induced_edges.parquet", "subject_id")
+    users = col_to_numpy(inp, "nodes.parquet", "int_id")
+    actors = col_to_numpy(inp, "induced_edges.parquet", "actor_id")
+    subjects = col_to_numpy(inp, "induced_edges.parquet", "subject_id")
 
-    print(f"  users: {len(users)}  induced: {len(induced_a)}")
+    num_users = len(users)
+    num_edges = len(actors)
+    print(f"  users: {num_users}  induced: {num_edges}")
 
-    buf = bytearray()
-
-    buf.extend(struct.pack("<I", len(users)))
-    buf.extend(struct.pack(f"<{len(users)}I", *users))
-
-    buf.extend(struct.pack("<I", len(induced_a)))
-    for a, s in zip(induced_a, induced_s):
-        buf.extend(struct.pack("<II", a, s))
-
+    # Interleave actors + subjects into a single uint32 array
+    import numpy as np
+    edges_flat = bytearray(actors.nbytes * 2)
+    flat = np.frombuffer(edges_flat, dtype="<u4").reshape(-1, 2)
+    flat[:, 0] = actors
+    flat[:, 1] = subjects
 
     out_path = os.path.join(out, "network.bin")
     with open(out_path, "wb") as f:
-        f.write(buf)
+        import struct
+        f.write(struct.pack("<I", num_users))
+        f.write(users.tobytes())
+        f.write(struct.pack("<I", num_edges))
+        f.write(edges_flat)
 
-    print(f"  wrote: {out_path}  ({len(buf):,} bytes)")
+    del edges_flat, flat, actors, subjects, users
+
+    total = 4 + num_users * 4 + 4 + num_edges * 8
+    print(f"  wrote: {out_path}  ({total:,} bytes)")
 
 
 if __name__ == "__main__":

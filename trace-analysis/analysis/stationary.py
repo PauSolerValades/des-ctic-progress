@@ -34,20 +34,19 @@ def table_batch_means(ss):
 
 
 def plot_convergence(ss):
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4), sharey=True)
-    for ax, s in zip(axes, SIZES):
+    for s in SIZES:
+        fig, ax = plt.subplots(figsize=(7, 4))
         vals = ss[s]["avg_online_frac"].to_numpy()
         rolling = np.cumsum(vals) / np.arange(1, len(vals) + 1)
         ax.plot(rolling, lw=0.8, color="steelblue")
         ax.axhline(vals.mean(), color="crimson", ls="--", lw=1,
                    label=f"μ = {vals.mean():.4f}")
-        ax.set_title(f"{NETWORK_LABEL[s]} (n={len(vals)})")
-        ax.set_xlabel("Run"); ax.legend(fontsize=9); ax.grid(True, alpha=0.3)
-    axes[0].set_ylabel("avg_online_frac")
-    fig.suptitle("Convergence of avg_online_frac across runs", fontsize=13)
-    plt.tight_layout()
-    fig.savefig(OUTPUT / "s1_convergence.png", bbox_inches="tight")
-    plt.close()
+        ax.set_title(f"Convergence — {NETWORK_LABEL[s]} (n={len(vals)})")
+        ax.set_xlabel("Run"); ax.set_ylabel("avg_online_frac")
+        ax.legend(fontsize=9); ax.grid(True, alpha=0.3)
+        fig.tight_layout()
+        fig.savefig(OUTPUT / f"s1_convergence_{s}.png", bbox_inches="tight")
+        plt.close(fig)
 
 
 def plot_histograms(ss):
@@ -56,20 +55,20 @@ def plot_histograms(ss):
         ("empty_timeline_pct", "Empty Timeline %"),
         ("gamma_reposts", "γ (reposts)"),
     ]
-    fig, axes = plt.subplots(len(metrics), 3, figsize=(15, 10))
-    for row, (col, title) in enumerate(metrics):
-        for ci, s in enumerate(SIZES):
-            ax = axes[row, ci]
+    for s in SIZES:
+        fig, axes = plt.subplots(len(metrics), 1, figsize=(7, 8), sharex=False)
+        for ax, (col, title) in zip(axes, metrics):
             vals = ss[s][col].to_numpy()
             ax.hist(vals, bins=min(50, len(vals)//5), color="steelblue",
                     edgecolor="white", alpha=0.8)
             ax.axvline(vals.mean(), color="crimson", ls="--", lw=1.5)
-            if row == 0: ax.set_title(f"{NETWORK_LABEL[s]}")
-            if ci == 0: ax.set_ylabel(title, fontsize=10)
+            ax.set_ylabel(title, fontsize=10)
             ax.grid(True, alpha=0.3)
-    plt.tight_layout()
-    fig.savefig(OUTPUT / "s1_histograms.png", bbox_inches="tight")
-    plt.close()
+        axes[-1].set_xlabel("Value")
+        fig.suptitle(f"Histograms — {NETWORK_LABEL[s]} (n={len(ss[s])})", fontsize=12)
+        fig.tight_layout()
+        fig.savefig(OUTPUT / f"s1_histograms_{s}.png", bbox_inches="tight")
+        plt.close(fig)
 
 
 def main():
